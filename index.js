@@ -1,13 +1,37 @@
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const { useParams } = require("react-router-dom");
+require("dotenv").config();
 
 const port = 5000;
 
 const app = express();
-app.use(cors());
+
+const verifiedToken = (req, res, next) => {
+  console.log("Hi");
+  const token = req.headers.token;
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    next();
+  });
+};
+
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const uri =
   "mongodb+srv://mahinbinraihan123:NEtl3gUupQ9jmQRJ@cluster0.iymbxs0.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
@@ -28,6 +52,14 @@ async function run() {
     const toletsCollection = toletDB.collection("toletsCollection");
     const usersCollection = toletDB.collection("usersCollection");
 
+    app.post("/jwt", async (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.SECRET_KEY, {
+        expiresIn: "1hr",
+      });
+      res.send({ token });
+    });
+
     app.get("/tolets", async (req, res) => {
       const allTolets = toletsCollection.find();
       const result = await allTolets.toArray();
@@ -36,9 +68,8 @@ async function run() {
 
     app.post("/adduser", async (req, res) => {
       const user = req.body;
-      console.log(user);
-      // const result= await usersCollection.insertOne(user)
-      // res.send(result)
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
     });
 
     app.get("/tolets/:id", async (req, res) => {
@@ -49,13 +80,13 @@ async function run() {
       res.send(tolet);
     });
 
-    app.post("/tolets", async (req, res) => {
+    app.post("/tolets", verifiedToken, async (req, res) => {
       const toletData = req.body;
       const result = await toletsCollection.insertOne(toletData);
       res.send(result);
     });
 
-    app.patch("/tolets/:id", async (req, res) => {
+    app.patch("/tolets/:id", verifiedToken, async (req, res) => {
       const id = req.params.id;
       const updatedTolet = req.body;
       const result = await toletsCollection.updateOne(
@@ -67,7 +98,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/tolets/:id", async (req, res) => {
+    app.delete("/tolets/:id", verifiedToken, async (req, res) => {
       const id = req.params.id;
       const result = await toletsCollection.deleteOne({
         _id: new ObjectId(id),
