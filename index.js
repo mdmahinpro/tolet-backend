@@ -26,11 +26,19 @@ async function run() {
     await client.connect();
     const toletDB = client.db("toletDB");
     const toletsCollection = toletDB.collection("toletsCollection");
+    const usersCollection = toletDB.collection("usersCollection");
 
     app.get("/tolets", async (req, res) => {
       const allTolets = toletsCollection.find();
       const result = await allTolets.toArray();
       res.send(result);
+    });
+
+    app.post("/adduser", async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      // const result= await usersCollection.insertOne(user)
+      // res.send(result)
     });
 
     app.get("/tolets/:id", async (req, res) => {
